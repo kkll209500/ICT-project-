@@ -1,0 +1,772 @@
+<title>건설중인자산 감가상각 개시시점 시뮬레이터</title>
+<div class="viz-root">
+<style>
+.viz-root {
+  color-scheme: light;
+  --surface-1:      #fcfcfb;
+  --page:           #f9f9f7;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border:         rgba(11,11,11,0.10);
+  --series-1: #2a78d6; /* skhynix FY23 연결 */
+  --series-2: #eb6834; /* skhynix FY23 별도 */
+  --series-3: #1baf7a; /* skhynix FY25 연결 */
+  --series-4: #eda100; /* samsung FY24 연결(근사) */
+  --series-5: #e87ba4; /* samsung FY25 연결(근사) */
+  --div-neg:  #256abf; /* diverging blue (감소) */
+  --div-pos:  #e34948; /* diverging red (증가) */
+  --div-mid:  #f0efec;
+  --chip-bg:  #f2f1ed;
+  --chip-bg-active: #0b0b0b;
+  --chip-text-active: #fcfcfb;
+  --note-accent: #a3701f;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
+  padding: 28px 20px 40px;
+  box-sizing: border-box;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --div-neg:  #3987e5;
+    --div-pos:  #e66767;
+    --div-mid:  #383835;
+    --chip-bg:  #242422;
+    --chip-bg-active: #ffffff;
+    --chip-text-active: #1a1a19;
+    --note-accent: #e0b46a;
+  }
+}
+:root[data-theme="dark"] .viz-root {
+  color-scheme: dark;
+  --surface-1:      #1a1a19;
+  --page:           #0d0d0d;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255,255,255,0.10);
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --div-neg:  #3987e5;
+  --div-pos:  #e66767;
+  --div-mid:  #383835;
+  --chip-bg:  #242422;
+  --chip-bg-active: #ffffff;
+  --chip-text-active: #1a1a19;
+  --note-accent: #e0b46a;
+}
+
+.viz-root * { box-sizing: border-box; }
+.viz-wrap { max-width: 920px; margin: 0 auto; }
+
+.viz-header h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+.viz-header p { font-size: 13.5px; color: var(--text-secondary); margin: 0; line-height: 1.55; }
+
+.viz-callout {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.viz-callout b { color: var(--text-primary); }
+
+.viz-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-top: 16px;
+}
+.viz-card h2 { font-size: 14px; margin: 0 0 2px; }
+.viz-card .sub { font-size: 12px; color: var(--text-muted); margin: 0 0 14px; }
+
+.legend-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.legend-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--chip-bg);
+  font-size: 11.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity .15s ease;
+  line-height: 1;
+}
+.legend-chip.off { opacity: 0.35; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+.chart-scroll { overflow-x: auto; }
+svg.chart { width: 100%; min-width: 520px; height: auto; display: block; }
+.gridline { stroke: var(--grid); stroke-width: 1; }
+.baseline0 { stroke: var(--baseline); stroke-width: 1; }
+.axis-text { fill: var(--text-muted); font-size: 10.5px; }
+.series-line { fill: none; stroke-width: 2; stroke-linecap: round; }
+.series-marker { stroke-width: 1.5; }
+.crosshair { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.tooltip-box rect { fill: var(--surface-1); stroke: var(--border); }
+.tooltip-box text { font-size: 10.5px; fill: var(--text-primary); }
+.tooltip-box .tt-label { fill: var(--text-secondary); }
+
+.slider-row { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.slider-row input[type=range] { flex: 1; accent-color: var(--series-1); }
+.slider-readout {
+  font-size: 12.5px; color: var(--text-secondary); min-width: 190px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.slider-readout b { color: var(--text-primary); }
+
+.case-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+.case-tab {
+  padding: 6px 11px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--chip-bg); font-size: 12px; color: var(--text-primary); cursor: pointer;
+}
+.case-tab.active { background: var(--chip-bg-active); color: var(--chip-text-active); border-color: transparent; }
+
+.facts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 10px; margin-top: 12px; }
+.fact-item { font-size: 11.5px; color: var(--text-secondary); }
+.fact-item .k { color: var(--text-muted); display: block; margin-bottom: 2px; }
+.fact-item .v { color: var(--text-primary); font-size: 12.5px; }
+.approx-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  background: var(--div-mid); color: var(--text-secondary); font-size: 10px; border: 1px solid var(--border);
+}
+
+.hero-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+.hero-stat { flex: 1; min-width: 160px; }
+.hero-stat .k { font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; }
+.hero-stat .v { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+.bar-block { margin-top: 18px; }
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.bar-label { width: 84px; font-size: 11.5px; color: var(--text-secondary); flex: none; }
+.bar-track { position: relative; flex: 1; height: 16px; background: var(--div-mid); border-radius: 3px; overflow: hidden; }
+.bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.bar-mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--baseline); }
+.bar-value { width: 108px; text-align: right; font-size: 11.5px; font-variant-numeric: tabular-nums; flex: none; }
+
+.tablebtn {
+  margin-top: 16px; font-size: 12px; padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--chip-bg); color: var(--text-primary); cursor: pointer;
+}
+.table-scroll { overflow-x: auto; margin-top: 12px; display: none; }
+.table-scroll.show { display: block; }
+table.datatable { border-collapse: collapse; width: 100%; font-size: 11.5px; white-space: nowrap; }
+table.datatable th, table.datatable td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+table.datatable th:first-child, table.datatable td:first-child,
+table.datatable th:nth-child(2), table.datatable td:nth-child(2) { text-align: left; font-variant-numeric: normal; }
+table.datatable th { color: var(--text-muted); font-weight: 500; }
+
+.viz-footer { margin-top: 18px; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+
+.section-tag {
+  display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;
+}
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 16px; margin-top: 14px; }
+.col-block h3 { font-size: 12.5px; margin: 0 0 8px; }
+.col-block.ok h3 { color: var(--div-pos); }
+.col-block.limit h3 { color: var(--text-secondary); }
+.col-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.col-list li { font-size: 12px; color: var(--text-secondary); line-height: 1.55; padding-left: 14px; position: relative; }
+.col-list li::before { content: "·"; position: absolute; left: 0; color: var(--text-muted); }
+
+.code-block {
+  margin-top: 12px; background: var(--page); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px; color: var(--text-primary); overflow-x: auto; white-space: pre;
+}
+.code-block .cmt { color: var(--text-muted); }
+
+.insight-box {
+  margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+  background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--note-accent);
+  font-size: 12.5px; color: var(--text-secondary); line-height: 1.6;
+}
+.insight-box b { color: var(--text-primary); }
+.gap-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+  background: var(--div-mid); color: var(--text-secondary); font-size: 10px; border: 1px solid var(--border);
+}
+</style>
+
+<div class="viz-wrap">
+  <div class="viz-header">
+    <h1>건설중인자산(CIP) 감가상각 개시시점 손익 영향 시뮬레이터</h1>
+    <p>삼성전자·SK하이닉스 사업보고서/감사보고서(DART)에서 추출한 데이터를 바탕으로, 핵심감사사항(KAM)으로
+    지적된 "건설중인자산 → 유형자산 대체(가동개시) 시점 판단"이 몇 개월 앞당겨지거나 늦춰졌을 때
+    당해년도 손익에 미치는 영향을 정액법 가정 하에 계산합니다.</p>
+  </div>
+
+  <div class="viz-callout">
+    <b>이 시뮬레이션이 계산하는 것</b>: 가동개시 판단이 실제보다 N개월 빨랐거나 늦었다면 감가상각비·영업이익·당기순이익이
+    얼마나 달라졌을지에 대한 근사치입니다. <b>계산하지 않는 것</b>: 실제 판단이 틀렸다는 의미가 아닙니다 — 감사인은
+    감사절차를 통해 적정의견을 냈습니다. 판단 하나가 재무제표에 미치는 영향의 크기를 체감하기 위한 학습 도구입니다.
+  </div>
+
+  <div class="viz-card">
+    <h2>시나리오별 당기순이익 영향</h2>
+    <p class="sub">가로축: 가동개시 시점 조정(개월, + 앞당김 / − 늦춤) · 세로축: 당기순이익 영향(조원)</p>
+    <div class="legend-row" id="legendRow"></div>
+    <div class="chart-scroll">
+      <svg class="chart" id="chartSvg" viewBox="0 0 880 380" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </div>
+
+  <div class="viz-card">
+    <h2>사례 탐색</h2>
+    <p class="sub">사례를 선택하고 슬라이더로 가동개시 시점을 조정해 손익 구성요소별 영향을 확인하세요.</p>
+    <div class="case-tabs" id="caseTabs"></div>
+
+    <div class="facts-grid" id="factsGrid"></div>
+
+    <div class="slider-row" style="margin-top:16px;">
+      <input type="range" id="shiftSlider" min="-6" max="6" step="1" value="0" />
+      <div class="slider-readout" id="sliderReadout"></div>
+    </div>
+
+    <div class="hero-row">
+      <div class="hero-stat">
+        <div class="k">Δ 감가상각비 (당해년도)</div>
+        <div class="v" id="heroDep">—</div>
+      </div>
+      <div class="hero-stat">
+        <div class="k">Δ 영업이익</div>
+        <div class="v" id="heroOI">—</div>
+      </div>
+      <div class="hero-stat">
+        <div class="k">Δ 당기순이익</div>
+        <div class="v" id="heroNI">—</div>
+      </div>
+    </div>
+
+    <div class="bar-block" id="barBlock"></div>
+  </div>
+
+  <div class="viz-card">
+    <h2>자본화 원가범위 시나리오</h2>
+    <p class="sub">선택한 사례의 자본화된 차입원가(이자비용)를 (a) 실제처럼 자본화해 내용연수에 걸쳐
+    감가상각하는 경우와 (b) 자본화하지 않고 발생 즉시 이자비용으로 전액 비용화하는 경우로 비교합니다.
+    "개시시점" 판단과는 별개로, 자본화 범위 자체도 당기 이익 규모를 좌우하는 판단 축입니다.</p>
+
+    <div class="hero-row">
+      <div class="hero-stat">
+        <div class="k">자본화된 차입원가</div>
+        <div class="v" id="capHeroCost">—</div>
+      </div>
+      <div class="hero-stat">
+        <div class="k">자본화 시 당기비용</div>
+        <div class="v" id="capHeroCapitalized">—</div>
+      </div>
+      <div class="hero-stat">
+        <div class="k">비자본화(즉시비용화) 시 당기비용</div>
+        <div class="v" id="capHeroExpensed">—</div>
+      </div>
+    </div>
+
+    <div class="bar-block" id="capBarBlock"></div>
+  </div>
+
+  <div class="viz-card">
+    <span class="section-tag">확장 연구 &#183; 타사 검증</span>
+    <h2>LG디스플레이는 왜 이 KAM이 아닌가</h2>
+    <p class="sub">CIP(건설중인자산)를 보유한 다른 기업에서도 이 KAM이 나타나는지, LG디스플레이 3개년 감사보고서로 검증했습니다.</p>
+    <div class="chart-scroll">
+      <table class="datatable">
+        <thead><tr><th style="text-align:left;">회계연도</th><th style="text-align:left;">감사인</th><th style="text-align:left;">핵심감사사항(KAM)</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;">FY2023 (제39기)</td><td style="text-align:left;">삼정회계법인</td><td style="text-align:left;">&#9312; 디스플레이 CGU 손상검사 &#9313; 이연법인세자산 실현가능성 평가</td></tr>
+          <tr><td style="text-align:left;">FY2024 (제40기)</td><td style="text-align:left;">삼일회계법인</td><td style="text-align:left;">&#9312; CGU 손상평가 &#9313; 이연법인세자산 실현가능성 평가</td></tr>
+          <tr><td style="text-align:left;">FY2025 (제41기)</td><td style="text-align:left;">삼일회계법인</td><td style="text-align:left;">&#9312; 영업권 배분 CGU 손상검사</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight-box">
+      <b>&#8594; "CIP 보유"는 필요조건일 뿐, 대규모 신규 팹 증설이 진행 중일 때만 이 KAM이 나타난다.</b><br>
+      3개년 모두 "건설중인자산 &#8594; 유형자산 대체(가동개시) 시점 판단"은 KAM으로 다뤄지지 않았습니다. LG디스플레이는 같은 기간 광저우 법인 매각 등 사업 축소·구조조정 국면에 있어, 손상·이연법인세 이슈가 감사인 입장에서 더 유의적이었던 것으로 보입니다 — 삼성전자·SK하이닉스는 반대로 신규 팹을 계속 증설하는 성장 국면입니다.
+    </div>
+  </div>
+
+  <div class="viz-card">
+    <span class="section-tag">확장 연구 &#183; 옵션 &#9312;</span>
+    <h2>감사절차 원문 &#8596; 정량적 손익영향 매핑</h2>
+    <p class="sub">DART 감사보고서 원문의 "핵심감사사항이 감사에서 다루어진 방법"을 시뮬레이터 수치와 직접 대조했습니다. 원문은 <code>raw_filings/</code>의 파일명이 실제 회사·연도와 일치하지 않는 경우가 많아, 본문에 등장하는 금액을 <code>kam_facts.csv</code> 수치와 대조해 확인했습니다.</p>
+    <div class="chart-scroll">
+      <table class="datatable">
+        <thead><tr><th style="text-align:left;">사례 (원문 확인됨)</th><th>&#177;1개월</th><th>&#177;3개월</th><th>&#177;6개월</th><th>자산총계 비중</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;">SK하이닉스 FY2023(연결)</td><td>&#8723;642억원</td><td>&#8723;1,927억원</td><td>&#8723;3,854억원</td><td>4.92%</td></tr>
+          <tr><td style="text-align:left;">SK하이닉스 FY2023(별도)</td><td>&#8723;577억원</td><td>&#8723;1,731억원</td><td>&#8723;3,462억원</td><td>4.78%</td></tr>
+          <tr><td style="text-align:left;">삼성전자 FY2024(연결, 근사)</td><td>&#8723;5,229억원</td><td>&#8723;1&#51312;5,686억원</td><td>&#8723;3&#51312;1,371억원</td><td>7.82%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="insight-box">
+      <b>&#8594; 삼성전자 원문에만 있는 절차: "표본추출 건에 대해 관찰을 통해 가동여부 확인"</b><br>
+      문서 검토를 넘어선 실물 현장 관찰입니다. (가설) 삼성전자는 KAM에 정확한 대상금액을 공시하지 않고 재무제표 주석의 취득액으로 근사해야 할 만큼 모집단이 넓고 불명확한 반면, SK하이닉스는 KAM 원문에 정확한 금액(4,940,500백만원)을 직접 특정하고 있어 모집단이 이미 좁게 특정된 상태입니다 — 모집단이 넓을수록 문서검사만으로는 부족해 물리적 관찰이 보강됐을 가능성이 있습니다. 다만 이는 두 회사 원문을 비교한 데서 나온 추정입니다.
+    </div>
+    <p class="sub" style="margin-top:12px;">SK하이닉스 FY2025(연결·별도)와 삼성전자 FY2025(연결)<span class="gap-badge">원문 미확보</span>는 KAM이 disclosed된 사실은 사업보고서 요약표로 확인되지만, "감사에서 다루어진 방법" 원문 단락은 확보한 자료에서 찾지 못해 표에 올리지 않았습니다.</p>
+  </div>
+
+  <div class="viz-card">
+    <span class="section-tag">확장 연구 &#183; 옵션 &#9313;</span>
+    <h2>DART Open API 자동 대사(Reconciliation)</h2>
+    <p class="sub">지금까지 손으로 옮겨 적은 숫자를 DART Open API로 독립적으로 재조회해 재계산(recalculation)합니다 — 감사절차 중 하나를 코드로 구현한 것입니다. (<code>dart_fetcher.py</code>)</p>
+    <div class="two-col">
+      <div class="col-block ok">
+        <h3>&#9989; 자동화한 것</h3>
+        <ul class="col-list">
+          <li>corp_code 자동 조회 (회사명 &#8594; 고유코드)</li>
+          <li>재무제표(자산총계 &#183; 유형자산) 자동 조회</li>
+          <li><code>total_assets.csv</code> 수기입력값과 자동 대사 &#8594; 일치 여부 출력</li>
+        </ul>
+      </div>
+      <div class="col-block limit">
+        <h3>&#9888; 자동화하지 않은(못한) 것</h3>
+        <ul class="col-list">
+          <li>KAM 본문(감사절차 텍스트)은 구조화 API가 없어 자동추출 불가 &#8211; 원문은 여전히 사람이 읽고 판단</li>
+          <li>이 환경엔 실제 Python이 없어(Store 실행 별칭뿐) 직접 실행 검증은 하지 못함 &#8211; 사용자 환경에서 실행 확인 필요</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code-block"><span class="cmt"># PowerShell: $env:DART_API_KEY = "..."</span>
+export DART_API_KEY=...
+python dart_fetcher.py</div>
+  </div>
+
+  <div class="viz-card">
+    <h2>추가 발견사항 (참고자료)</h2>
+    <p class="sub">감가상각 시점·자본화 범위 판단과 함께 확인한 관련 데이터입니다.</p>
+
+    <p style="font-size:12.5px; color:var(--text-primary); margin:14px 0 6px; font-weight:600;">삼성전자 보고부문(CGU)별 영업권 손상차손 (단위: 백만원)</p>
+    <div class="chart-scroll">
+      <table class="datatable">
+        <thead><tr><th style="text-align:left;">부문</th><th>FY2023</th><th>FY2024</th><th>FY2025</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;">DX</td><td>1,256,815</td><td>1,463,566</td><td>5,442,473 (손상 6,871)</td></tr>
+          <tr><td style="text-align:left;">DS</td><td>164,607</td><td>176,885</td><td>107,081 (손상 96,008)</td></tr>
+          <tr><td style="text-align:left;">SDC</td><td>343,967</td><td>380,897</td><td>373,720</td></tr>
+          <tr><td style="text-align:left;">Harman</td><td>4,691,440</td><td>5,146,242</td><td>5,180,928 (DTS매각 손상 145,612)</td></tr>
+          <tr><td style="text-align:left;">계</td><td>6,457,619</td><td>7,168,541</td><td>11,105,233</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:12.5px; color:var(--text-primary); margin:16px 0 6px; font-weight:600;">SK하이닉스 Solidigm CGU 영업권 현황 (단위: 백만원)</p>
+    <div class="chart-scroll">
+      <table class="datatable">
+        <thead><tr><th style="text-align:left;">CGU</th><th>FY2022</th><th>FY2023</th><th>FY2024</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;">기존 CGU</td><td>798,723</td><td>803,348</td><td>848,328</td></tr>
+          <tr><td style="text-align:left;">Solidigm CGU</td><td>0</td><td>0</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:6px;">Solidigm CGU에 배분된 영업권은 애초에 0원 — 감사인이 매년 KAM으로 손상평가를 검토했지만 손상차손을 인식한 적은 없습니다.</p>
+
+    <p style="font-size:12.5px; color:var(--text-primary); margin:16px 0 6px; font-weight:600;">SK하이닉스 신규 Fab 시설투자 이사회결의 타임라인</p>
+    <div class="chart-scroll">
+      <table class="datatable">
+        <thead><tr><th style="text-align:left;">이사회결의일</th><th style="text-align:left;">투자대상</th><th>금액</th></tr></thead>
+        <tbody>
+          <tr><td style="text-align:left;">2021-02-24</td><td style="text-align:left;">EUV Scanner 장비 구매(ASML)</td><td>4조 7,549억원</td></tr>
+          <tr><td style="text-align:left;">2024-04-24</td><td style="text-align:left;">청주 M15X 건설</td><td>5조 2,962억원</td></tr>
+          <tr><td style="text-align:left;">2024-07-26</td><td style="text-align:left;">용인 클러스터 신규 Fab 건설</td><td>9조 4,115억원</td></tr>
+          <tr><td style="text-align:left;">2026-02-25</td><td style="text-align:left;">용인 클러스터 1기 Fab Phase2~6</td><td>21조 6,081억원</td></tr>
+          <tr><td style="text-align:left;">2026-07-22</td><td style="text-align:left;">청주 P&amp;T7 건설(증액)</td><td>7조 931억원</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:6px;">착공 결정일이지 KAM의 "감가상각 개시" 시점과는 집계 단위가 달라 1:1 매칭은 불가능합니다 (착공~가동개시 통상 2~3년 소요). 삼성전자는 이 유형의 개별 공시 자체가 없습니다.</p>
+  </div>
+
+  <div class="viz-card">
+    <h2>전체 시나리오 데이터</h2>
+    <p class="sub">사례 × 조정폭(개월) 조합 전체 (백만원 단위)</p>
+    <button class="tablebtn" id="toggleTableBtn">표 펼치기</button>
+    <div class="table-scroll" id="tableScroll"></div>
+  </div>
+
+  <div class="viz-footer">
+    기준 시나리오: 연중 평균 7월 1일(6개월) 가동개시 가정 · 법인세 실효세율 22% · 정액법, 잔존가치 0 가정.
+    삼성전자는 KAM에 정확한 금액이 공시되지 않아 재무제표 주석의 기계장치 취득액(건설중인자산 대체분 포함)으로
+    대상 금액을 근사했습니다(표에 "근사" 표기) — 감가상각비 배분비율(매출원가/판관비)은 삼성전자 연결감사보고서
+    실제 공시치를 사용했습니다. 데이터 출처: DART 사업보고서·감사보고서 및 수시공시(신규시설투자등).
+  </div>
+</div>
+
+<script>
+(function () {
+  var CASES = [
+    { id: "sk23c", company: "SK하이닉스", year: 2023, basis: "연결", label: "SK하이닉스 FY2023 (연결)",
+      population: 4940500, usefulLife: 5, cogs: 0.9278, sga: 0.0629, rnd: 0.0093, tax: 0.22,
+      capBorrowingCost: 136622,
+      approx: false, source: "KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",
+      colorVar: "--series-1" },
+    { id: "sk23s", company: "SK하이닉스", year: 2023, basis: "별도", label: "SK하이닉스 FY2023 (별도)",
+      population: 4438544, usefulLife: 5, cogs: 0.9081, sga: 0.0836, rnd: 0.0086, tax: 0.22,
+      capBorrowingCost: 133580,
+      approx: false, source: "KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",
+      colorVar: "--series-2" },
+    { id: "sk25c", company: "SK하이닉스", year: 2025, basis: "연결", label: "SK하이닉스 FY2025 (연결)",
+      population: 17618705, usefulLife: 5, cogs: 0.9350, sga: 0.0605, rnd: 0.0046, tax: 0.22,
+      capBorrowingCost: 249760,
+      approx: false, source: "KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",
+      colorVar: "--series-3" },
+    { id: "ss24c", company: "삼성전자", year: 2024, basis: "연결", label: "삼성전자 FY2024 (연결, 근사)",
+      population: 40219596, usefulLife: 5, cogs: 0.8849, sga: 0.1151, rnd: 0, tax: 0.22,
+      capBorrowingCost: 515824,
+      approx: true, source: "KAM 원문에 정확한 금액 미공시 — 주석상 기계장치 '일반취득 및 자본적지출'(건설중인자산 대체분 포함) 금액으로 근사. 배분비율은 삼성전자 연결감사보고서 실제 공시치(매출원가/판관비 2범주, 개발비 별도 공시 없음).",
+      colorVar: "--series-4" },
+    { id: "ss25c", company: "삼성전자", year: 2025, basis: "연결", label: "삼성전자 FY2025 (연결, 근사)",
+      population: 38773884, usefulLife: 5, cogs: 0.8738, sga: 0.1262, rnd: 0, tax: 0.22,
+      capBorrowingCost: 557852,
+      approx: true, source: "KAM 원문에 정확한 금액 미공시 — 주석상 기계장치 '일반취득 및 자본적지출'(건설중인자산 대체분 포함) 금액으로 근사. 배분비율은 삼성전자 연결감사보고서 실제 공시치(매출원가/판관비 2범주, 개발비 별도 공시 없음).",
+      colorVar: "--series-5" },
+  ];
+  var SHIFTS = [-6, -3, -1, 0, 1, 3, 6];
+  var BASELINE_MONTHS = 6;
+
+  var root = document.querySelector(".viz-root");
+  function cssVar(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
+
+  function calc(c, shift) {
+    var annual = c.population / c.usefulLife;
+    var monthsDep = Math.max(0, Math.min(12, BASELINE_MONTHS + shift));
+    var baselineDep = annual * (BASELINE_MONTHS / 12);
+    var scenarioDep = annual * (monthsDep / 12);
+    var deltaDep = scenarioDep - baselineDep;
+    var deltaCogs = deltaDep * c.cogs;
+    var deltaSga = deltaDep * c.sga;
+    var deltaRnd = deltaDep * c.rnd;
+    var deltaOI = -deltaDep;
+    var deltaNI = deltaOI * (1 - c.tax);
+    return { monthsDep: monthsDep, deltaDep: deltaDep, deltaCogs: deltaCogs, deltaSga: deltaSga,
+      deltaRnd: deltaRnd, deltaOI: deltaOI, deltaNI: deltaNI };
+  }
+
+  function capCalc(c) {
+    var capitalizedExpense = c.capBorrowingCost / c.usefulLife * (BASELINE_MONTHS / 12);
+    var expensedExpense = c.capBorrowingCost;
+    var deltaExpense = expensedExpense - capitalizedExpense;
+    var deltaNI = -deltaExpense * (1 - c.tax);
+    return { capitalizedExpense: capitalizedExpense, expensedExpense: expensedExpense, deltaNI: deltaNI };
+  }
+
+  function fmtEok(v) { // 백만원 -> 억원
+    var n = v / 100;
+    var s = n.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+    return (n > 0 ? "+" : "") + s + " 억원";
+  }
+  function fmtJo(v) { // 백만원 -> 조원
+    var n = v / 1000000;
+    var s = n.toLocaleString("ko-KR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+    return (n > 0 ? "+" : "") + s + " 조원";
+  }
+
+  // ---------- Legend ----------
+  var visible = {};
+  CASES.forEach(function (c) { visible[c.id] = true; });
+
+  var legendRow = document.getElementById("legendRow");
+  CASES.forEach(function (c) {
+    var chip = document.createElement("div");
+    chip.className = "legend-chip";
+    chip.dataset.id = c.id;
+    chip.innerHTML = '<span class="legend-dot" style="background:' + cssVar(c.colorVar) + '"></span>' + c.label;
+    chip.addEventListener("click", function () {
+      visible[c.id] = !visible[c.id];
+      chip.classList.toggle("off", !visible[c.id]);
+      drawChart();
+    });
+    legendRow.appendChild(chip);
+  });
+
+  // ---------- Chart ----------
+  var svg = document.getElementById("chartSvg");
+  var svgNS = "http://www.w3.org/2000/svg";
+  var M = { l: 54, r: 16, t: 16, b: 34 };
+  var W = 880, H = 380;
+  var plotW = W - M.l - M.r, plotH = H - M.t - M.b;
+
+  // precompute y domain across all cases/shifts
+  var allNI = [];
+  CASES.forEach(function (c) { SHIFTS.forEach(function (s) { allNI.push(calc(c, s).deltaNI / 1000000); }); });
+  var yMax = Math.max.apply(null, allNI.map(Math.abs));
+  yMax = Math.ceil(yMax * 1.15 * 10) / 10;
+  var yMin = -yMax;
+
+  function xPix(shift) { return M.l + (shift - (-6)) / (6 - (-6)) * plotW; }
+  function yPix(v) { return M.t + (yMax - v) / (yMax - yMin) * plotH; }
+
+  var currentShift = 0;
+
+  function el(tag, attrs) {
+    var e = document.createElementNS(svgNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function drawChart() {
+    svg.innerHTML = "";
+
+    // gridlines (y)
+    var ticks = [];
+    for (var i = -4; i <= 4; i++) { var t = (yMax / 4) * i; if (Math.abs(t) <= yMax + 0.001) ticks.push(t); }
+    ticks.forEach(function (t) {
+      var yy = yPix(t);
+      svg.appendChild(el("line", { x1: M.l, x2: W - M.r, y1: yy, y2: yy, class: t === 0 ? "baseline0" : "gridline" }));
+      var lbl = el("text", { x: M.l - 8, y: yy + 3, class: "axis-text", "text-anchor": "end" });
+      lbl.textContent = t.toFixed(1);
+      svg.appendChild(lbl);
+    });
+
+    // x ticks
+    SHIFTS.forEach(function (s) {
+      var xx = xPix(s);
+      var lbl = el("text", { x: xx, y: H - M.b + 18, class: "axis-text", "text-anchor": "middle" });
+      lbl.textContent = (s > 0 ? "+" : "") + s;
+      svg.appendChild(lbl);
+    });
+    var xlabel = el("text", { x: (M.l + W - M.r) / 2, y: H - 4, class: "axis-text", "text-anchor": "middle" });
+    xlabel.textContent = "가동개시 시점 조정 (개월)";
+    svg.appendChild(xlabel);
+
+    // baseline vertical at x=0
+    svg.appendChild(el("line", { x1: xPix(0), x2: xPix(0), y1: M.t, y2: H - M.b, class: "gridline" }));
+
+    // series lines (linear: only need endpoints, but draw through markers)
+    CASES.forEach(function (c) {
+      if (!visible[c.id]) return;
+      var color = cssVar(c.colorVar);
+      var pts = SHIFTS.map(function (s) { return [xPix(s), yPix(calc(c, s).deltaNI / 1000000)]; });
+      var d = "M " + pts.map(function (p) { return p[0] + " " + p[1]; }).join(" L ");
+      svg.appendChild(el("path", { d: d, class: "series-line", stroke: color }));
+      pts.forEach(function (p) {
+        svg.appendChild(el("circle", { cx: p[0], cy: p[1], r: 3.5, fill: color, class: "series-marker", stroke: cssVar("--surface-1") }));
+      });
+    });
+
+    // crosshair at currentShift
+    var cx = xPix(currentShift);
+    svg.appendChild(el("line", { x1: cx, x2: cx, y1: M.t, y2: H - M.b, class: "crosshair" }));
+    CASES.forEach(function (c) {
+      if (!visible[c.id]) return;
+      var cy = yPix(calc(c, currentShift).deltaNI / 1000000);
+      svg.appendChild(el("circle", { cx: cx, cy: cy, r: 5, fill: cssVar(c.colorVar), stroke: cssVar("--surface-1"), "stroke-width": 2 }));
+    });
+
+    // tooltip box (top-right or top-left depending on crosshair position)
+    var activeCases = CASES.filter(function (c) { return visible[c.id]; });
+    var boxW = 190, lineH = 15, boxH = 20 + activeCases.length * lineH;
+    var boxX = cx < W / 2 ? cx + 12 : cx - 12 - boxW;
+    boxX = Math.max(M.l, Math.min(W - M.r - boxW, boxX));
+    var boxY = M.t + 4;
+    var g = el("g", { class: "tooltip-box" });
+    g.appendChild(el("rect", { x: boxX, y: boxY, width: boxW, height: boxH, rx: 8 }));
+    var title = el("text", { x: boxX + 10, y: boxY + 16, class: "tt-label" });
+    title.textContent = (currentShift > 0 ? "+" : "") + currentShift + "개월 조정";
+    g.appendChild(title);
+    activeCases.forEach(function (c, idx) {
+      var r = calc(c, currentShift);
+      var ty = boxY + 16 + (idx + 1) * lineH;
+      var dot = el("circle", { cx: boxX + 12, cy: ty - 4, r: 3.5, fill: cssVar(c.colorVar) });
+      g.appendChild(dot);
+      var txt = el("text", { x: boxX + 22, y: ty, "text-anchor": "start" });
+      txt.textContent = c.label.replace(/^(SK하이닉스|삼성전자) /, "") + "  " + fmtJo(r.deltaNI);
+      g.appendChild(txt);
+    });
+    svg.appendChild(g);
+  }
+
+  svg.addEventListener("mousemove", function (evt) {
+    var rect = svg.getBoundingClientRect();
+    var scaleX = W / rect.width;
+    var xInSvg = (evt.clientX - rect.left) * scaleX;
+    var shiftVal = ((xInSvg - M.l) / plotW) * 12 - 6;
+    shiftVal = Math.max(-6, Math.min(6, Math.round(shiftVal)));
+    if (shiftVal !== currentShift) {
+      currentShift = shiftVal;
+      document.getElementById("shiftSlider").value = shiftVal;
+      updateAll();
+    }
+  });
+
+  // ---------- Case tabs / facts / breakdown ----------
+  var activeCaseId = CASES[0].id;
+  var caseTabs = document.getElementById("caseTabs");
+  CASES.forEach(function (c) {
+    var b = document.createElement("button");
+    b.className = "case-tab" + (c.id === activeCaseId ? " active" : "");
+    b.textContent = c.label;
+    b.dataset.id = c.id;
+    b.addEventListener("click", function () {
+      activeCaseId = c.id;
+      Array.prototype.forEach.call(caseTabs.children, function (ch) { ch.classList.toggle("active", ch.dataset.id === c.id); });
+      updateAll();
+    });
+    caseTabs.appendChild(b);
+  });
+
+  function renderFacts(c) {
+    var grid = document.getElementById("factsGrid");
+    grid.innerHTML = "";
+    var items = [
+      ["대상 금액 (population at risk)", (c.population).toLocaleString("ko-KR") + " 백만원" + (c.approx ? '<span class="approx-badge">근사</span>' : "")],
+      ["대표 내용연수", c.usefulLife + "년"],
+      ["배분비율 (매출원가/판관비/개발비)", (c.cogs * 100).toFixed(1) + "% / " + (c.sga * 100).toFixed(1) + "% / " + (c.rnd * 100).toFixed(1) + "%"],
+      ["출처", c.source],
+    ];
+    items.forEach(function (it) {
+      var div = document.createElement("div");
+      div.className = "fact-item";
+      div.innerHTML = '<span class="k">' + it[0] + '</span><span class="v">' + it[1] + '</span>';
+      grid.appendChild(div);
+    });
+  }
+
+  function renderBars(c, shift) {
+    var r = calc(c, shift);
+    var block = document.getElementById("barBlock");
+    block.innerHTML = "";
+    var rows = [
+      ["Δ 매출원가", r.deltaCogs],
+      ["Δ 판관비", r.deltaSga],
+      ["Δ 개발비", r.deltaRnd],
+      ["Δ 영업이익", r.deltaOI],
+      ["Δ 당기순이익", r.deltaNI],
+    ];
+    var maxAbs = Math.max.apply(null, rows.map(function (x) { return Math.abs(x[1]); })) || 1;
+    rows.forEach(function (row) {
+      var name = row[0], val = row[1];
+      var pct = (Math.abs(val) / maxAbs) * 50; // half-track max
+      var rowDiv = document.createElement("div");
+      rowDiv.className = "bar-row";
+      var color = val >= 0 ? cssVar("--div-pos") : cssVar("--div-neg");
+      var left = val >= 0 ? "50%" : (50 - pct) + "%";
+      var width = pct + "%";
+      rowDiv.innerHTML =
+        '<div class="bar-label">' + name + '</div>' +
+        '<div class="bar-track"><div class="bar-mid"></div>' +
+        '<div class="bar-fill" style="left:' + left + ';width:' + width + ';background:' + color + '"></div>' +
+        '</div>' +
+        '<div class="bar-value">' + fmtEok(val) + '</div>';
+      block.appendChild(rowDiv);
+    });
+  }
+
+  function renderCapBars(c) {
+    var r = capCalc(c);
+    document.getElementById("capHeroCost").textContent = fmtEok(c.capBorrowingCost);
+    document.getElementById("capHeroCapitalized").textContent = fmtEok(r.capitalizedExpense);
+    document.getElementById("capHeroExpensed").textContent = fmtEok(r.expensedExpense);
+
+    var block = document.getElementById("capBarBlock");
+    block.innerHTML = "";
+    var maxAbs = Math.max(r.capitalizedExpense, r.expensedExpense, Math.abs(r.deltaNI)) || 1;
+    var rows = [
+      ["당기비용(자본화)", r.capitalizedExpense, cssVar("--div-neg")],
+      ["당기비용(비자본화)", r.expensedExpense, cssVar("--div-pos")],
+      ["Δ 당기순이익", r.deltaNI, r.deltaNI >= 0 ? cssVar("--div-pos") : cssVar("--div-neg")],
+    ];
+    rows.forEach(function (row) {
+      var name = row[0], val = row[1], color = row[2];
+      var pct = (Math.abs(val) / maxAbs) * 50;
+      var left = val >= 0 ? "50%" : (50 - pct) + "%";
+      var rowDiv = document.createElement("div");
+      rowDiv.className = "bar-row";
+      rowDiv.innerHTML =
+        '<div class="bar-label">' + name + '</div>' +
+        '<div class="bar-track"><div class="bar-mid"></div>' +
+        '<div class="bar-fill" style="left:' + left + ';width:' + pct + '%;background:' + color + '"></div>' +
+        '</div>' +
+        '<div class="bar-value">' + fmtEok(val) + '</div>';
+      block.appendChild(rowDiv);
+    });
+  }
+
+  function updateAll() {
+    var c = CASES.filter(function (x) { return x.id === activeCaseId; })[0];
+    var r = calc(c, currentShift);
+    var months = r.monthsDep;
+    document.getElementById("sliderReadout").innerHTML =
+      "<b>" + (currentShift > 0 ? "+" : "") + currentShift + "개월</b> (" + (currentShift > 0 ? "앞당김" : currentShift < 0 ? "늦춤" : "기준") + ")"
+      + " · 당해년도 상각월수 " + months + "개월";
+    renderFacts(c);
+    renderBars(c, currentShift);
+    renderCapBars(c);
+    document.getElementById("heroDep").textContent = fmtEok(r.deltaDep);
+    document.getElementById("heroOI").textContent = fmtEok(r.deltaOI);
+    document.getElementById("heroOI").style.color = r.deltaOI >= 0 ? cssVar("--div-pos") : cssVar("--div-neg");
+    document.getElementById("heroNI").textContent = fmtJo(r.deltaNI);
+    document.getElementById("heroNI").style.color = r.deltaNI >= 0 ? cssVar("--div-pos") : cssVar("--div-neg");
+    drawChart();
+  }
+
+  document.getElementById("shiftSlider").addEventListener("input", function (e) {
+    currentShift = parseInt(e.target.value, 10);
+    updateAll();
+  });
+
+  // ---------- Table ----------
+  var tableScroll = document.getElementById("tableScroll");
+  var tableBuilt = false;
+  document.getElementById("toggleTableBtn").addEventListener("click", function (e) {
+    if (!tableBuilt) {
+      var rows = [];
+      CASES.forEach(function (c) {
+        SHIFTS.forEach(function (s) {
+          var r = calc(c, s);
+          rows.push([c.company, c.year + " " + c.basis, (s > 0 ? "+" : "") + s, r.monthsDep,
+            Math.round(r.deltaDep), Math.round(r.deltaCogs), Math.round(r.deltaOI), Math.round(r.deltaNI)]);
+        });
+      });
+      var html = '<table class="datatable"><thead><tr>' +
+        "<th>회사</th><th>연도/기준</th><th>조정(개월)</th><th>상각월수</th>" +
+        "<th>Δ감가상각비</th><th>Δ매출원가</th><th>Δ영업이익</th><th>Δ당기순이익</th>" +
+        "</tr></thead><tbody>";
+      rows.forEach(function (row) {
+        html += "<tr><td>" + row[0] + "</td><td>" + row[1] + "</td><td>" + row[2] + "</td><td>" + row[3] + "</td>" +
+          "<td>" + row[4].toLocaleString("ko-KR") + "</td><td>" + row[5].toLocaleString("ko-KR") + "</td>" +
+          "<td>" + row[6].toLocaleString("ko-KR") + "</td><td>" + row[7].toLocaleString("ko-KR") + "</td></tr>";
+      });
+      html += "</tbody></table>";
+      tableScroll.innerHTML = html;
+      tableBuilt = true;
+    }
+    var showing = tableScroll.classList.toggle("show");
+    e.target.textContent = showing ? "표 접기" : "표 펼치기";
+  });
+
+  updateAll();
+  window.addEventListener("resize", drawChart);
+})();
+</script>
+</div>

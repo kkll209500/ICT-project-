@@ -8,6 +8,7 @@
 
 ```
 program/
+  dashboard.html             # 인터랙티브 대시보드 (브라우저에서 바로 열어보는 시각화, 별도 실행 불필요)
   data/
     kam_facts.csv                     # 회사·연도별 KAM 대상 금액, 내용연수 가정, 근사 여부
     depreciation_split.csv            # 감가상각비의 매출원가/판관비/개발비 배분 비율
@@ -28,6 +29,14 @@ program/
     multi_year_comparison.csv          # 연차별 누적 손익 영향 (0으로 수렴하는지 확인)
     materiality_summary.csv            # 대상금액의 자산총계 대비 비중 (중요성 근사)
 ```
+
+## 인터랙티브 대시보드 (`dashboard.html`)
+
+Python 없이 브라우저로 바로 결과를 훑어보고 싶다면 `dashboard.html`을 더블클릭(또는
+브라우저로 열기)하면 됩니다. 시나리오 차트, 사례별 슬라이더 탐색, 자본화 원가범위
+비교, LG디스플레이 검증 사례, 감사절차↔손익영향 매핑, DART Open API 자동화 설명,
+영업권 손상·이사회결의 타임라인, 전체 데이터 표까지 하나의 정적 HTML 파일에 담겨
+있습니다(외부 라이브러리 없이 순수 HTML/CSS/JS).
 
 ## 실행 방법
 
