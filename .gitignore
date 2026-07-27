@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.claude/settings.local.json
+
+# 원문 스크래핑 텍스트 (DART 원문 덤프, 용량이 커서 리포지토리에서 제외)
+raw_filings/
+project_plan.md
+kam_and_data_summary.md

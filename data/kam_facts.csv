@@ -1,0 +1,10 @@
+company,fiscal_year,basis,kam_disclosed,machinery_pp_e_total,population_at_risk,population_source,useful_life_low,useful_life_high,useful_life_representative
+skhynix,2023,consolidated,TRUE,52704853,4940500,"KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",5,15,5
+skhynix,2023,separate,TRUE,38974277,4438544,"KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",5,15,5
+skhynix,2024,consolidated,FALSE,60157474,,"해당연도 KAM 아님 - 감사보고서에 금액 미공시",5,15,5
+skhynix,2024,separate,FALSE,48316766,,"해당연도 KAM 아님 - 감사보고서에 금액 미공시",5,15,5
+skhynix,2025,consolidated,TRUE,77502704,17618705,"KAM 원문 명시: 당기 중 사용가능 상태 도달 판단으로 감가상각 개시한 기계장치 금액",5,15,5
+skhynix,2025,separate,TRUE,67394741,,"KAM은 연결재무제표에서만 별도 금액 공시, 별도 수치 미공시",5,15,5
+samsung,2023,consolidated,FALSE,,,"해당연도 KAM 아님(재고자산이 KAM)",5,5,5
+samsung,2024,consolidated,TRUE,,40219596,"KAM 원문에 정확한 금액 미공시 - 주석상 기계장치 '일반취득 및 자본적지출'(건설중인자산 대체분 포함) 금액으로 근사",5,5,5
+samsung,2025,consolidated,TRUE,,38773884,"KAM 원문에 정확한 금액 미공시 - 주석상 기계장치 '일반취득 및 자본적지출'(건설중인자산 대체분 포함) 금액으로 근사",5,5,5

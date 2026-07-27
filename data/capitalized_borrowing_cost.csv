@@ -1,0 +1,12 @@
+company,fiscal_year,basis,capitalized_borrowing_cost_mkrw,capitalized_interest_rate_low,capitalized_interest_rate_high,source
+samsung,2022,consolidated,41634,0.021,0.041,ss(제55기 사업보고서 유형자산 주석 전기 비교치; sk2026_kam.txt L6005)
+samsung,2023,consolidated,204814,0.039,0.058,ss(제55기 사업보고서 유형자산 주석 당기; sk2026_kam.txt L5993; 제56기 보고서 전기치와 교차검증)
+samsung,2024,consolidated,515824,0.042,0.059,ss(제56기 사업보고서 유형자산 주석 당기; sk2026_kam3.txt L5588; 제57기 감사보고서/사업보고서 전기치와 교차검증)
+samsung,2025,consolidated,557852,0.042,0.044,ss(제57기 연결감사보고서 유형자산 주석 당기; kam_and_data_summary.md L2698)
+samsung,2024,separate,849378,0.046,0.046,ss(제57기 사업보고서 별도 유형자산 주석)
+skhynix,2023,consolidated,136622,0.0434,0.0434,sk(제76기 사업보고서 유형자산 주석)
+skhynix,2024,consolidated,202995,0.0632,0.0632,sk(제77기 사업보고서 유형자산 주석)
+skhynix,2025,consolidated,249760,0.0391,0.0391,sk(제78기 사업보고서 유형자산 주석)
+skhynix,2023,separate,133580,0.0431,0.0431,sk(제76기 사업보고서 별도 유형자산 주석)
+skhynix,2024,separate,202995,0.0632,0.0632,sk(제77기 사업보고서 별도 유형자산 주석)
+skhynix,2025,separate,249760,0.0391,0.0391,sk(제78기 사업보고서 별도 유형자산 주석)

@@ -1,0 +1,10 @@
+company,fiscal_year,basis,cogs_ratio,sga_ratio,rnd_ratio,total_depreciation
+skhynix,2023,consolidated,0.9278,0.0629,0.0093,12730450
+skhynix,2024,consolidated,0.9271,0.0659,0.0069,11535635
+skhynix,2025,consolidated,0.9350,0.0605,0.0046,12663516
+skhynix,2023,separate,0.9081,0.0836,0.0086,8022509
+skhynix,2024,separate,0.9124,0.0811,0.0064,7710140
+skhynix,2025,separate,0.9330,0.0635,0.0033,9683145
+samsung,2023,consolidated,0.8907,0.1093,0.0000,35532411
+samsung,2024,consolidated,0.8849,0.1151,0.0000,39649982
+samsung,2025,consolidated,0.8738,0.1262,0.0000,43605740

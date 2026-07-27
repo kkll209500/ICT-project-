@@ -1,0 +1,14 @@
+company,basis,fiscal_year,report_source,construction_in_progress_end,depreciation_expense_total,capitalized_borrowing_cost,capitalized_interest_rate,unit
+samsung,consolidated,2022,ss2025_report,33607564,35532411,,,백만원
+samsung,consolidated,2023,ss2025_report,46720328,39649982,,,백만원
+samsung,consolidated,2024,ss2026_report,53117255,43605740,,,백만원
+samsung,consolidated,2025,ss2026_report,56765303,,,,백만원
+samsung,separate,2023,ss2025_report,34675331,25619594,,,백만원
+samsung,separate,2024,ss2025_report,31466912,30285298,849378,0.046,백만원
+samsung,separate,2025,ss2026_report,28239759,35291428,,,백만원
+skhynix,consolidated,2023,sk2025_report,6018787,12730450,136622,0.0434,백만원
+skhynix,consolidated,2024,sk2025_report,11107224,11535635,202995,0.0632,백만원
+skhynix,consolidated,2025,sk2026_report,21743745,12663516,249760,0.0391,백만원
+skhynix,separate,2023,sk2025_report,4413629,8022509,133580,0.0431,백만원
+skhynix,separate,2024,sk2025_report,9263257,7710140,202995,0.0632,백만원
+skhynix,separate,2025,sk2026_report,19650598,9683145,249760,0.0391,백만원
