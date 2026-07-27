@@ -82,6 +82,23 @@ class CapitalizationScopeResult:
 
 
 @dataclass
+class MultiYearRow:
+    year_index: int  # 1 = KAM 해당연도, 2 = 그 다음해, ...
+    baseline_depreciation: float
+    scenario_depreciation: float
+    delta_depreciation: float
+    delta_net_income: float
+    cumulative_delta_net_income: float
+
+
+@dataclass
+class MaterialityContext:
+    total_assets: float
+    population_at_risk: float
+    population_pct_of_assets: float
+
+
+@dataclass
 class ScenarioResult:
     shift_months: int
     months_depreciated: int
@@ -229,6 +246,106 @@ def run_capitalization_scope_scenario(
     )
 
 
+def _build_depreciation_schedule(
+    population_at_risk: float, useful_life_years: float, months_in_year1: int
+) -> list[tuple[int, float]]:
+    """1년차에 months_in_year1개월치를 상각하고, 그 뒤로는 매년 12개월씩
+    상각해 총 useful_life_years*12개월치(=population_at_risk 전액)를 다
+    상각할 때까지의 연도별 (연차, 상각액) 목록을 반환합니다."""
+    monthly_dep = population_at_risk / (useful_life_years * 12)
+    remaining_months = round(useful_life_years * 12)
+    schedule: list[tuple[int, float]] = []
+    year = 1
+    months_this_year = max(0, min(12, months_in_year1))
+    while remaining_months > 0:
+        months_this_year = min(months_this_year, remaining_months)
+        schedule.append((year, monthly_dep * months_this_year))
+        remaining_months -= months_this_year
+        year += 1
+        months_this_year = 12
+    return schedule
+
+
+def run_multi_year_comparison(
+    facts: CaseFacts,
+    shift_months: int,
+    baseline_months: int = DEFAULT_BASELINE_MONTHS,
+    useful_life_years: Optional[float] = None,
+    effective_tax_rate: Optional[float] = None,
+) -> list[MultiYearRow]:
+    """가동개시 시점을 shift_months만큼 조정했을 때, KAM 해당연도부터
+    자산이 완전히 상각될 때까지 연도별 손익 영향이 어떻게 나타나는지 보여줍니다.
+
+    핵심 포인트: 총 상각액(population_at_risk)은 시점을 언제로 잡든 동일하므로,
+    연도별 누적 Δ당기순이익은 결국 0으로 수렴합니다 — "시점" 판단은 이익을
+    만들어내는 게 아니라 여러 해에 걸쳐 이익을 이동(재배치)시킬 뿐이라는 뜻입니다.
+    """
+    useful_life = useful_life_years or facts.useful_life_years
+    tax_rate = effective_tax_rate if effective_tax_rate is not None else facts.effective_tax_rate
+
+    scenario_months_year1 = max(0, min(12, baseline_months + shift_months))
+    baseline_schedule = dict(
+        _build_depreciation_schedule(facts.population_at_risk, useful_life, baseline_months)
+    )
+    scenario_schedule = dict(
+        _build_depreciation_schedule(facts.population_at_risk, useful_life, scenario_months_year1)
+    )
+
+    years = sorted(set(baseline_schedule) | set(scenario_schedule))
+    rows: list[MultiYearRow] = []
+    cumulative = 0.0
+    for year in years:
+        baseline_amt = baseline_schedule.get(year, 0.0)
+        scenario_amt = scenario_schedule.get(year, 0.0)
+        delta_dep = scenario_amt - baseline_amt
+        delta_ni = -delta_dep * (1 - tax_rate)
+        cumulative += delta_ni
+        rows.append(
+            MultiYearRow(
+                year_index=year,
+                baseline_depreciation=baseline_amt,
+                scenario_depreciation=scenario_amt,
+                delta_depreciation=delta_dep,
+                delta_net_income=delta_ni,
+                cumulative_delta_net_income=cumulative,
+            )
+        )
+    return rows
+
+
+def load_total_assets(company: str, fiscal_year: int, basis: str) -> Optional[float]:
+    """data/total_assets.csv에서 해당 회사/연도/기준의 자산총계(백만원)를
+    조회합니다. 공시되지 않은 조합이면 None을 반환합니다."""
+    rows = _read_csv("total_assets.csv")
+    row = next(
+        (
+            r
+            for r in rows
+            if r["company"] == company
+            and int(r["fiscal_year"]) == fiscal_year
+            and r["basis"] == basis
+        ),
+        None,
+    )
+    return float(row["total_assets_mkrw"]) if row else None
+
+
+def compute_materiality_context(facts: CaseFacts, total_assets: float) -> MaterialityContext:
+    """KAM 대상 금액(population_at_risk)이 회사 자산총계 대비 몇 %인지 계산합니다.
+
+    주의: 이건 감사인이 실제로 사용한 중요성금액(materiality)이 아닙니다 — 그
+    수치는 감사보고서에 공시되지 않습니다. 여기서는 "이 판단이 재무제표 전체
+    규모에 비해 얼마나 큰가"를 가늠하기 위한 근사 지표로 자산총계 대비 비율을
+    씁니다(참고로 실무에서 흔히 쓰이는 중요성 기준 중 하나가 총자산의
+    0.5~2% 수준입니다).
+    """
+    return MaterialityContext(
+        total_assets=total_assets,
+        population_at_risk=facts.population_at_risk,
+        population_pct_of_assets=facts.population_at_risk / total_assets * 100,
+    )
+
+
 def run_scenario(
     facts: CaseFacts,
     shift_months: int,
@@ -309,4 +426,19 @@ if __name__ == "__main__":
                 f"자본화 시 당기비용={cap_result.capitalized_case_current_year_expense:,.0f} | "
                 f"비자본화(즉시 비용화) 시={cap_result.expensed_case_current_year_expense:,.0f} | "
                 f"Δ당기순이익={cap_result.delta_net_income:+,.0f} (백만원)"
+            )
+
+        print("  [다년도 누적] 6개월 앞당긴 경우, 연차별 Δ당기순이익 (백만원):")
+        for r in run_multi_year_comparison(facts, shift_months=6):
+            print(
+                f"    {r.year_index}년차 | Δ당기순이익={r.delta_net_income:+,.0f} | "
+                f"누적={r.cumulative_delta_net_income:+,.0f}"
+            )
+
+        total_assets = load_total_assets(company, year, basis)
+        if total_assets is not None:
+            ctx = compute_materiality_context(facts, total_assets)
+            print(
+                f"  [중요성 근사] 자산총계={total_assets:,.0f} 대비 "
+                f"대상금액 비중={ctx.population_pct_of_assets:.2f}% (백만원)"
             )

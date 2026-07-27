@@ -21,10 +21,15 @@ import matplotlib.font_manager as fm
 from cip_timing_simulator import (
     load_case_facts,
     load_capitalized_borrowing_cost,
+    load_total_assets,
+    compute_materiality_context,
     run_capitalization_scope_scenario,
+    run_multi_year_comparison,
     run_scenario_set,
     _read_csv,
 )
+
+MULTI_YEAR_SHIFTS = [-6, 6]
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -122,6 +127,78 @@ def write_capitalization_scope_csv(cases):
     print(f"저장됨: {path}")
 
 
+def write_multi_year_csv(cases):
+    path = os.path.join(OUTPUT_DIR, "multi_year_comparison.csv")
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "company",
+                "fiscal_year",
+                "basis",
+                "shift_months",
+                "year_index",
+                "baseline_depreciation_mkrw",
+                "scenario_depreciation_mkrw",
+                "delta_depreciation_mkrw",
+                "delta_net_income_mkrw",
+                "cumulative_delta_net_income_mkrw",
+            ]
+        )
+        for company, year, basis in cases:
+            facts = load_case_facts(company, year, basis)
+            for shift in MULTI_YEAR_SHIFTS:
+                for r in run_multi_year_comparison(facts, shift):
+                    writer.writerow(
+                        [
+                            company,
+                            year,
+                            basis,
+                            shift,
+                            r.year_index,
+                            f"{r.baseline_depreciation:.0f}",
+                            f"{r.scenario_depreciation:.0f}",
+                            f"{r.delta_depreciation:.0f}",
+                            f"{r.delta_net_income:.0f}",
+                            f"{r.cumulative_delta_net_income:.0f}",
+                        ]
+                    )
+    print(f"저장됨: {path}")
+
+
+def write_materiality_csv(cases):
+    path = os.path.join(OUTPUT_DIR, "materiality_summary.csv")
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "company",
+                "fiscal_year",
+                "basis",
+                "population_at_risk_mkrw",
+                "total_assets_mkrw",
+                "population_pct_of_assets",
+            ]
+        )
+        for company, year, basis in cases:
+            total_assets = load_total_assets(company, year, basis)
+            if total_assets is None:
+                continue
+            facts = load_case_facts(company, year, basis)
+            ctx = compute_materiality_context(facts, total_assets)
+            writer.writerow(
+                [
+                    company,
+                    year,
+                    basis,
+                    f"{ctx.population_at_risk:.0f}",
+                    f"{ctx.total_assets:.0f}",
+                    f"{ctx.population_pct_of_assets:.2f}",
+                ]
+            )
+    print(f"저장됨: {path}")
+
+
 def plot_comparison(all_results):
     fig, ax = plt.subplots(figsize=(10, 6))
     for (company, year, basis), facts, results in all_results:
@@ -154,6 +231,8 @@ def main():
     write_summary_csv(all_results)
     plot_comparison(all_results)
     write_capitalization_scope_csv(cases)
+    write_multi_year_csv(cases)
+    write_materiality_csv(cases)
 
 
 if __name__ == "__main__":
